@@ -2,9 +2,10 @@ package sarama
 
 import (
 	"errors"
+	"testing"
+
 	krbcfg "gopkg.in/jcmturner/gokrb5.v7/config"
 	"gopkg.in/jcmturner/gokrb5.v7/test/testdata"
-	"testing"
 )
 
 /*
@@ -13,20 +14,6 @@ import (
  * properly.
  *
  */
-const TEST_KRB5CONF = `
-[libdefaults]
-default_realm = EXAMPLE.COM
-
-[realms]
-EXAMPLE.COM = {
-kdc = kerberos.example.com
-admin_server = kerberos.example.com
-}
-
-[domain_realm]
-.example.com = EXAMPLE.COM
-example.com = EXAMPLE.COM
-`
 
 func TestFaildToCreateKerberosConfig(t *testing.T) {
 	expectedErr := errors.New("configuration file could not be opened: krb5.conf open krb5.conf: no such file or directory")
