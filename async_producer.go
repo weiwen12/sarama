@@ -561,10 +561,12 @@ func (pp *partitionProducer) dispatch() {
 		// if we made it this far then the current msg contains real data, and can be sent to the next goroutine
 		// without breaking any of our ordering guarantees
 
-		if pp.brokerProducer == nil {
+		for retries := 0; pp.brokerProducer == nil; retries++ {
+			// On success, updateLeader sets brokerProducer, satisfying the loop condition, otherwise we report
+			// the error and wait for the backoff.
 			if err := pp.updateLeader(); err != nil {
 				pp.parent.returnError(msg, err)
-				pp.backoff(msg.retries)
+				pp.backoff(retries)
 				continue
 			}
 			Logger.Printf("producer/leader/%s/%d selected broker %d\n", pp.topic, pp.partition, pp.leader.ID())
