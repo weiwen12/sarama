@@ -1,3 +1,13 @@
+# beats-vendored sarama fork
+
+## warning
+
+This is the wrong branch! This branch is unmaintained and should not be used. You are probably looking for the `beats-fork` branch. See there for more detailed instructions.
+
+The `beats-fork` branch of this repository contains the version of Sarama vendored with beats, which (when necessary) includes bug fixes that have not yet reached an official Sarama release.
+
+Original readme follows:
+
 # sarama
 
 [![GoDoc](https://godoc.org/github.com/Shopify/sarama?status.svg)](https://godoc.org/github.com/Shopify/sarama)
