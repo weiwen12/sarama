@@ -1,3 +1,67 @@
+
+# Sarama fork for Beats
+
+This repository holds the version of Sarama shipped with Beats, which sometimes includes bug fixes that have not yet reached an official Sarama release. The Beats package links against the `beats-fork` branch.
+
+## Current state
+
+The current baseline Sarama version is `v1.26.4`.
+
+The additional patches applied to this version are:
+- A fix for Kerberos authentication ([issue](PENDING), [pull request](PENDING), [upstream pull request](PENDING))
+- A fix for exponential backoff when a Kafka broker is down ([issue](PENDING), [pull request](PENDING), [upstream pull request](PENDING))
+
+## Updating this repository
+
+### Adding a new fix
+
+If a new fix needs to be applied, open a pull request against the `beats-fork` branch of this repository. The fix should go through standard code review and should include an update to the "Current state" section of the `README.md`, linking to details of the change.
+
+### Syncing with a more recent upstream
+
+This fork does not always sync against the latest Sarama release. However, the intent is to stay as close to the current release as makes sense based on known issues and testing constraints.
+
+Updates should always target an explicit release tag. To perform the update, first create your own fork of sarama with the "Fork" icon at the top right, then run the following from the command line:
+
+    # Clone the repository locally, pointing at your own fork
+    git clone git@github.com:[YOUR USERNAME]/sarama.git
+
+    # Add links back to the Elastic and Shopify repositories so
+    # we can merge between them, and run git fetch so we can
+    # access the version tags.
+    git remote add upstream git@github.com:elastic/sarama.git
+    git remote add shopify git@github.com:Shopify/sarama.git
+    git fetch --all
+
+    # Check out the current Elastic fork and use it as a baseline
+    # for a new local branch called "version-upgrade"
+    git checkout upstream/beats-fork
+    git checkout -b version-upgrade
+
+    # Merge the target version into your new branch (replace
+    # the version tag as appropriate).
+    # If the new version conflicts with the outstanding bug
+    # fixes, you will need to resolve those conflicts in this
+    # step.
+    git merge v1.26.4
+
+    # Push the update back to your fork on github.
+    git push --set-upstream origin version-upgrade
+
+After this, open a regular pull request as in the previous section, remembering to update `README.md` to reflect the new baseline version.
+
+### Updating the Beats repository
+
+After a new fix or update, the Beats repository needs to be updated to point to the new version. You should almost always target the most recent commit in the [commits list for the `beats-fork` branch](https://github.com/elastic/sarama/commits/beats-fork) unless that would disrupt an impending release. Copy the commit hash (with the copy icon or by clicking through to the commit itself), then from a local branch of the Beats repository:
+
+    go mod edit -replace github.com/Shopify/sarama=github.com/elastic/sarama@[commit hash]
+    mage vendor
+    mage update
+
+You can then commit the results and submit a PR against the Beats repository, remembering to backport if appropriate.
+
+Original `README.md` follows:
+
 # sarama
 
 [![GoDoc](https://godoc.org/github.com/Shopify/sarama?status.svg)](https://godoc.org/github.com/Shopify/sarama)
