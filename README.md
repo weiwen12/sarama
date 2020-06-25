@@ -1,4 +1,3 @@
-
 # Sarama fork for Beats
 
 This repository holds the version of Sarama shipped with Beats, which sometimes includes bug fixes that have not yet reached an official Sarama release. The Beats package links against the `beats-fork` branch.
@@ -8,8 +7,8 @@ This repository holds the version of Sarama shipped with Beats, which sometimes 
 The current baseline Sarama version is `v1.26.4`.
 
 The additional patches applied to this version are:
-- A fix for Kerberos authentication ([issue](PENDING), [pull request](PENDING), [upstream pull request](PENDING))
-- A fix for exponential backoff when a Kafka broker is down ([issue](PENDING), [pull request](PENDING), [upstream pull request](PENDING))
+- A fix for Kerberos authentication ([issue](https://github.com/Shopify/sarama/issues/1658), [pull request](https://github.com/elastic/sarama/pull/11), [upstream pull request](https://github.com/Shopify/sarama/pull/1697) [merged, not yet released]) 
+- A fix for exponential backoff when a Kafka broker is down ([issue](https://github.com/Shopify/sarama/issues/1719), [pull request](https://github.com/elastic/sarama/pull/10), [upstream pull request](https://github.com/Shopify/sarama/pull/1720))
 
 ## Updating this repository
 
