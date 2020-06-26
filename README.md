@@ -57,7 +57,52 @@ After a new fix or update, the Beats repository needs to be updated to point to 
     mage vendor
     mage update
 
-You can then commit the results and submit a PR against the Beats repository, remembering to backport if appropriate.
+You can then commit the results and submit a PR against the Beats repository, remembering to backport if appropriate. Pull requests MUST include the commit summary they target in their description, e.g.:
+
+"This PR updates Sarama to the current Elastic fork, targeting the commit:
+
+```
+commit 123456789abcdefdf68d97cd255ebc039d36e88c (HEAD -> beats-fork, upstream/beats-fork)
+Author: Someone <someone@somewhere.com>
+Date:   Wed Jun 10 16:19:46 2020 -0400
+
+    Apply some sort of fix
+```
+"
+
+(This information is technically redundant, but makes it much easier for code reviewers to confirm that the right version is being applied.)
+
+### What Sarama version is Beats linked to?
+
+In any Beats branch, you can find the baseline Sarama version and any additional patches by checking the commit hash in the module configuration:
+
+```
+> grep Shopify/sarama go.mod
+
+        github.com/Shopify/sarama v0.0.0-00010101000000-000000000000
+        github.com/Shopify/sarama => github.com/elastic/sarama v1.19.1-0.20200625133446-b4d980d71f60
+```
+
+**Important**: the tag prefix on the Sarama fork, `"v1.19.1"` in this case, comes from internal interaction between git and go modules, and has no human-discernible connection to the deployed version!
+
+To get the real answer, copy the hash at the end of the line (`b4d980d71f60` in this example), and check the repository status at that hash by opening `https://github.com/elastic/sarama/tree/[hash]`. The `README.md` at the bottom of that page will list the base version and patches that were in effect in its "Current state" section.
+
+If there is no second line when you check `go.mod`, then the fork is not in use, and the current Sarama version is whatever is referenced by the tag at the end of the Sarama line.
+
+### Turning the fork on / off in Beats
+
+When a mainline Sarama release includes all fixes we need, we should generally prefer to link directly to it instead of using the fork. To do this:
+
+- Submit a PR against the `beats-fork` branch, updating it to the new target version and reverting any remaining custom patches (see the instructions above). This is to make sure the fork is left in a clean state if it needs to be turned on again in the future.
+- In the Beats repository:
+  * select the new Sarama version with:
+
+        go get github.com/Shopify/sarama@v1.2.3    [replace tag with the real target version]
+  * Edit `go.mod` manually to remove the line `github.com/Shopify/sarama => github.com/elastic/sarama...`
+  * Reload the linked version by running `mage vendor` and `mage update`
+  * Commit the results and submit the resulting PR
+
+Once this is done, the fork can be reenabled at any time by following instructions in the previous sections to update the fork and reference it from Beats.
 
 Original `README.md` follows:
 
