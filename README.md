@@ -54,8 +54,7 @@ After this, open a regular pull request as in the previous section, remembering 
 After a new fix or update, the Beats repository needs to be updated to point to the new version. You should almost always target the most recent commit in the [commits list for the `beats-fork` branch](https://github.com/elastic/sarama/commits/beats-fork) unless that would disrupt an impending release. Copy the commit hash (with the copy icon or by clicking through to the commit itself), then from a local branch of the Beats repository:
 
     go mod edit -replace github.com/Shopify/sarama=github.com/elastic/sarama@[commit hash]
-    mage vendor
-    mage update
+    make notice
 
 You can then commit the results and submit a PR against the Beats repository, remembering to backport if appropriate. Pull requests MUST include the commit summary they target in their description, e.g.:
 
@@ -70,7 +69,7 @@ Date:   Wed Jun 10 16:19:46 2020 -0400
 ```
 "
 
-(This information is technically redundant, but makes it much easier for code reviewers to confirm that the right version is being applied.)
+(This information is technically redundant, but makes it much easier for code reviewers to confirm that the right version is being applied.) See this [example PR](https://github.com/elastic/beats/pull/19527).
 
 ### What Sarama version is Beats linked to?
 
