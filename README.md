@@ -56,6 +56,8 @@ After a new fix or update, the Beats repository needs to be updated to point to 
     go mod edit -replace github.com/Shopify/sarama=github.com/elastic/sarama@[commit hash]
     make notice
 
+(When backporting to 7.8 or earlier you will also need to run `mage vendor` and then rerun `make notice` in the backport branch.)
+
 You can then commit the results and submit a PR against the Beats repository, remembering to backport if appropriate. Pull requests MUST include the commit summary they target in their description, e.g.:
 
 "This PR updates Sarama to the current Elastic fork, targeting the commit:
