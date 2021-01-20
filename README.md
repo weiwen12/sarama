@@ -4,10 +4,9 @@ This repository holds the version of Sarama shipped with Beats, which sometimes 
 
 ## Current state
 
-The current baseline Sarama version is `v1.26.4`.
+The current baseline Sarama version is `v1.27.2`.
 
 The additional patches applied to this version are:
-- A fix for Kerberos authentication ([issue](https://github.com/Shopify/sarama/issues/1658), [pull request](https://github.com/elastic/sarama/pull/11), [upstream pull request](https://github.com/Shopify/sarama/pull/1697) [merged, not yet released]) 
 - A fix for exponential backoff when a Kafka broker is down ([issue](https://github.com/Shopify/sarama/issues/1719), [pull request](https://github.com/elastic/sarama/pull/10), [upstream pull request](https://github.com/Shopify/sarama/pull/1720))
 
 ## Updating this repository
@@ -129,7 +128,7 @@ You might also want to look at the [Frequently Asked Questions](https://github.c
 Sarama provides a "2 releases + 2 months" compatibility guarantee: we support
 the two latest stable releases of Kafka and Go, and we provide a two month
 grace period for older releases. This means we currently officially support
-Go 1.12 through 1.14, and Kafka 2.1 through 2.4, although older releases are
+Go 1.13 through 1.14, and Kafka 2.4 through 2.6, although older releases are
 still likely to work.
 
 Sarama follows semantic versioning and provides API stability via the gopkg.in service.
