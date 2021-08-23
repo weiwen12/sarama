@@ -90,26 +90,64 @@ func TestBalanceStrategyRoundRobin(t *testing.T) {
 		expected BalanceStrategyPlan
 	}{
 		{
-			members: map[string][]string{"M1": {"T1", "T2"}, "M2": {"T1", "T2"}},
-			topics:  map[string][]int32{"T1": {0, 1, 2, 3}, "T2": {0, 1, 2, 3}},
+			members: map[string][]string{"M1": {"T1", "T2", "T3"}, "M2": {"T1", "T2", "T3"}},
+			topics:  map[string][]int32{"T1": {0}, "T2": {0}, "T3": {0}},
 			expected: BalanceStrategyPlan{
-				"M1": map[string][]int32{"T1": {0, 2}, "T2": {1, 3}},
-				"M2": map[string][]int32{"T1": {1, 3}, "T2": {0, 2}},
+				"M1": map[string][]int32{"T1": {0}, "T3": {0}},
+				"M2": map[string][]int32{"T2": {0}},
 			},
 		},
 		{
-			members: map[string][]string{"M1": {"T1", "T2"}, "M2": {"T1", "T2"}},
-			topics:  map[string][]int32{"T1": {0, 1, 2}, "T2": {0, 1, 2}},
+			members: map[string][]string{"M1": {"T1", "T2", "T3"}, "M2": {"T1", "T2", "T3"}},
+			topics:  map[string][]int32{"T1": {0}, "T2": {0, 1}, "T3": {0, 1, 2, 3}},
 			expected: BalanceStrategyPlan{
-				"M1": map[string][]int32{"T1": {0, 2}, "T2": {1}},
-				"M2": map[string][]int32{"T1": {1}, "T2": {0, 2}},
+				"M1": map[string][]int32{"T1": {0}, "T2": {1}, "T3": {1, 3}},
+				"M2": map[string][]int32{"T2": {0}, "T3": {0, 2}},
+			},
+		},
+		{
+			members: map[string][]string{"M1": {"T1"}, "M2": {"T1"}},
+			topics:  map[string][]int32{"T1": {0}},
+			expected: BalanceStrategyPlan{
+				"M1": map[string][]int32{"T1": {0}},
+			},
+		},
+		{
+			members: map[string][]string{"M1": {"T1", "T2", "T3"}},
+			topics:  map[string][]int32{"T1": {0}, "T2": {0}, "T3": {0, 1, 2}},
+			expected: BalanceStrategyPlan{
+				"M1": map[string][]int32{"T1": {0}, "T2": {0}, "T3": {0, 1, 2}},
+			},
+		},
+		{
+			members: map[string][]string{"M1": {"T1", "T2", "T3"}, "M2": {"T1"}},
+			topics:  map[string][]int32{"T1": {0}, "T2": {0}, "T3": {0}},
+			expected: BalanceStrategyPlan{
+				"M1": map[string][]int32{"T1": {0}, "T2": {0}, "T3": {0}},
+			},
+		},
+		{
+			members: map[string][]string{"M1": {"T1", "T2", "T3"}, "M2": {"T1", "T3"}},
+			topics:  map[string][]int32{"T1": {0}, "T2": {0}, "T3": {0}},
+			expected: BalanceStrategyPlan{
+				"M1": map[string][]int32{"T1": {0}, "T2": {0}},
+				"M2": map[string][]int32{"T3": {0}},
+			},
+		},
+		{
+			members: map[string][]string{"M": {"T1", "T2", "TT2"}, "M2": {"T1", "T2", "TT2"}, "M3": {"T1", "T2", "TT2"}},
+			topics:  map[string][]int32{"T1": {0}, "T2": {0}, "TT2": {0}},
+			expected: BalanceStrategyPlan{
+				"M":  map[string][]int32{"T1": {0}},
+				"M2": map[string][]int32{"T2": {0}},
+				"M3": map[string][]int32{"TT2": {0}},
 			},
 		},
 	}
 
 	strategy := BalanceStrategyRoundRobin
 	if strategy.Name() != "roundrobin" {
-		t.Errorf("Unexpected stategy name\nexpected: range\nactual: %v", strategy.Name())
+		t.Errorf("Unexpected strategy name\nexpected: roundrobin\nactual: %v", strategy.Name())
 	}
 
 	for _, test := range tests {
@@ -1727,7 +1765,7 @@ func Test_stickyBalanceStrategy_Plan_ReassignmentWithRandomSubscriptionsAndChang
 			}
 		}
 		plan2, err := s.Plan(membersPlan2, partitionsPerTopic)
-		verifyPlanIsBalancedAndSticky(t, s, members, plan2, err)
+		verifyPlanIsBalancedAndSticky(t, s, membersPlan2, plan2, err)
 	}
 }
 
@@ -1929,6 +1967,7 @@ func Test_stickyBalanceStrategy_Plan_AssignmentWithMultipleGenerations2(t *testi
 	verifyPlanIsBalancedAndSticky(t, s, members, plan3, err)
 	verifyFullyBalanced(t, plan3)
 }
+
 func Test_stickyBalanceStrategy_Plan_AssignmentWithConflictingPreviousGenerations(t *testing.T) {
 	s := &stickyBalanceStrategy{}
 
@@ -2083,6 +2122,7 @@ func BenchmarkStickAssignmentWithLargeNumberOfConsumersAndTopicsAndExistingAssig
 }
 
 func verifyPlanIsBalancedAndSticky(t *testing.T, s *stickyBalanceStrategy, members map[string]ConsumerGroupMemberMetadata, plan BalanceStrategyPlan, err error) {
+	t.Helper()
 	if err != nil {
 		t.Errorf("stickyBalanceStrategy.Plan() error = %v", err)
 		return
@@ -2095,6 +2135,7 @@ func verifyPlanIsBalancedAndSticky(t *testing.T, s *stickyBalanceStrategy, membe
 }
 
 func verifyValidityAndBalance(t *testing.T, consumers map[string]ConsumerGroupMemberMetadata, plan BalanceStrategyPlan) {
+	t.Helper()
 	size := len(consumers)
 	if size != len(plan) {
 		t.Errorf("Subscription size (%d) not equal to plan size (%d)", size, len(plan))
@@ -2113,13 +2154,13 @@ func verifyValidityAndBalance(t *testing.T, consumers map[string]ConsumerGroupMe
 		for assignedTopic := range plan[memberID] {
 			found := false
 			for _, assignableTopic := range consumers[memberID].Topics {
-				if assignableTopic == assignableTopic {
+				if assignableTopic == assignedTopic {
 					found = true
 					break
 				}
 			}
 			if !found {
-				t.Errorf("Consumer %s had assigned topic %s that wasn't in the list of assignable topics", memberID, assignedTopic)
+				t.Errorf("Consumer %s had assigned topic %q that wasn't in the list of assignable topics %v", memberID, assignedTopic, consumers[memberID].Topics)
 				t.FailNow()
 			}
 		}

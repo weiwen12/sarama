@@ -61,7 +61,7 @@ func TestCachedPartitions(t *testing.T) {
 	// Verify we actually use the cache at all!
 	tmp[allPartitions] = []int32{1, 2, 3, 4}
 	client.cachedPartitionsResults["my_topic"] = tmp
-	if 4 != len(client.cachedPartitions("my_topic", allPartitions)) {
+	if len(client.cachedPartitions("my_topic", allPartitions)) != 4 {
 		t.Fatal("Not using the cache!")
 	}
 
@@ -101,7 +101,7 @@ func TestClientDoesntCachePartitionsForTopicsWithErrors(t *testing.T) {
 	}
 
 	// Should still use the cache of a known topic
-	partitions, err = client.Partitions("my_topic")
+	_, err = client.Partitions("my_topic")
 	if err != nil {
 		t.Errorf("Expected no error, found %v", err)
 	}
@@ -573,6 +573,42 @@ func TestClientRefreshMetadataBrokerOffline(t *testing.T) {
 	}
 	if len(client.Brokers()) != 1 {
 		t.Error("Meta broker is not 1")
+	}
+}
+
+func TestClientGetBroker(t *testing.T) {
+	seedBroker := NewMockBroker(t, 1)
+	leader := NewMockBroker(t, 5)
+
+	metadataResponse1 := new(MetadataResponse)
+	metadataResponse1.AddBroker(leader.Addr(), leader.BrokerID())
+	metadataResponse1.AddBroker(seedBroker.Addr(), seedBroker.BrokerID())
+	seedBroker.Returns(metadataResponse1)
+
+	client, err := NewClient([]string{seedBroker.Addr()}, NewTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	broker, err := client.Broker(leader.BrokerID())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if broker.Addr() != leader.Addr() {
+		t.Errorf("Expected broker to have address %s, found %s", leader.Addr(), broker.Addr())
+	}
+
+	metadataResponse2 := new(MetadataResponse)
+	metadataResponse2.AddBroker(seedBroker.Addr(), seedBroker.BrokerID())
+	seedBroker.Returns(metadataResponse2)
+
+	if err := client.RefreshMetadata(); err != nil {
+		t.Error(err)
+	}
+	_, err = client.Broker(leader.BrokerID())
+	if err != ErrBrokerNotFound {
+		t.Errorf("Expected Broker(brokerID) to return %v found %v", ErrBrokerNotFound, err)
 	}
 }
 
