@@ -55,6 +55,25 @@ var ErrNoTopicsToUpdateMetadata = errors.New("kafka: no specific topics to updat
 // ErrUnknownScramMechanism is returned when user tries to AlterUserScramCredentials with unknown SCRAM mechanism
 var ErrUnknownScramMechanism = errors.New("kafka: unknown SCRAM mechanism provided")
 
+// ErrSASLHandshakeReadEOF is returned when an unexpected EOF arises reading the SASL handshake header,
+// which usually indicates an invalid server certificate.
+var ErrSASLHandshakeReadEOF = errors.New("kafka: couldn't read SASL handshake (bad broker certificate?)")
+
+// ErrSASLHandshakeSendEOF is returned when an EOF arises initiating a SASL handshake with the broker,
+// which usually indicates that the broker is not expecting a SASL handshake.
+var ErrSASLHandshakeSendEOF = errors.New("kafka: couldn't write SASL handshake (make sure SASL is enabled on the target broker port)")
+
+// ErrFetchMetadataEOF is returned when an unexpected EOF arises while fetching broker metadata.
+// When this is not caused by one of the preceding handshake errors, this often means a plaintext
+// client is attempting to connect to a TLS-enabled broker, or a TLS-only client
+// is attempting to connect to a broker that requires SASL authentication.
+var ErrFetchMetadataEOF = errors.New("kafka: couldn't fetch broker metadata (check that your client and broker are using the same encryption and authentication settings)")
+
+// ErrBadTLSHandshake is returned when there is a TLS error while attempting a SASL handshake or
+// metadata refresh. This usually means that the requested TLS version or cipher is unsupported
+// by the broker.
+var ErrBadTLSHandshake = errors.New("kafka: bad TLS handshake connecting to broker (check that your TLS version and cipher are enabled by the broker)")
+
 // PacketEncodingError is returned from a failure while encoding a Kafka packet. This can happen, for example,
 // if you try to encode a string over 2^15 characters in length, since Kafka's encoding rules do not permit that.
 type PacketEncodingError struct {

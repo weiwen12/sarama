@@ -917,12 +917,32 @@ func (client *client) tryRefreshMetadata(topics []string, attemptsRemaining int,
 				Logger.Println("client is not authorized to access this topic. The topics were: ", topics)
 				return err
 			}
+			if err == ErrUnsupportedSASLMechanism {
+				Logger.Println("requested SASL mechanism is not supported by the broker")
+				return err
+			}
+
 			// else remove that broker and try again
-			Logger.Printf("client/metadata got error from broker %d while fetching metadata: %v\n", broker.ID(), err)
+			Logger.Printf("client/metadata got kafka error from broker %d while fetching metadata: %v\n", broker.ID(), err)
 			_ = broker.Close()
 			client.deregisterBroker(broker)
 
 		default:
+			if err == ErrSASLHandshakeReadEOF ||
+				err == ErrSASLHandshakeSendEOF ||
+				err == ErrFetchMetadataEOF ||
+				err == ErrBadTLSHandshake {
+				// These errors are typically unrecoverable, so we return them
+				// directly here to avoid falling back on the less useful
+				// "client has run out of brokers" error after retrying.
+				//
+				// Beats-specific note: if these errors arise, the connection
+				// will still be retried, so this will not break things if the
+				// error is temporary; it will just retry at the user-configured
+				// rate, and with more informative log messages.
+				return err
+			}
+
 			// some other error, remove that broker and try again
 			Logger.Printf("client/metadata got error from broker %d while fetching metadata: %v\n", broker.ID(), err)
 			_ = broker.Close()
