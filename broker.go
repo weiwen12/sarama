@@ -3,6 +3,7 @@ package sarama
 import (
 	"crypto/tls"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -282,7 +283,7 @@ func (b *Broker) GetMetadata(request *MetadataRequest) (*MetadataResponse, error
 
 	err := b.sendAndReceive(request, response)
 	if err != nil {
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 			// An EOF while fetching metadata is a special case, since it
 			// usually indicates an unrecoverable protocol mismatch.
 			return nil, ErrFetchMetadataEOF
@@ -987,7 +988,7 @@ func (b *Broker) sendAndReceiveSASLHandshake(saslType SASLMechanism, version int
 	if err != nil {
 		b.addRequestInFlightMetrics(-1)
 		Logger.Printf("Failed to send SASL handshake %s: %s\n", b.addr, err.Error())
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return ErrSASLHandshakeSendEOF
 		} else if strings.HasPrefix(err.Error(), "tls:") {
 			// This is a workaround for the fact that the TLS subsystem

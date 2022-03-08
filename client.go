@@ -1,6 +1,7 @@
 package sarama
 
 import (
+	"errors"
 	"math/rand"
 	"sort"
 	"sync"
@@ -908,16 +909,16 @@ func (client *client) tryRefreshMetadata(topics []string, attemptsRemaining int,
 
 		case KError:
 			// if SASL auth error return as this _should_ be a non retryable err for all brokers
-			if err == ErrSASLAuthenticationFailed {
+			if errors.Is(err, ErrSASLAuthenticationFailed) {
 				Logger.Println("client/metadata failed SASL authentication")
 				return err
 			}
 
-			if err == ErrTopicAuthorizationFailed {
+			if errors.Is(err, ErrTopicAuthorizationFailed) {
 				Logger.Println("client is not authorized to access this topic. The topics were: ", topics)
 				return err
 			}
-			if err == ErrUnsupportedSASLMechanism {
+			if errors.Is(err, ErrUnsupportedSASLMechanism) {
 				Logger.Println("requested SASL mechanism is not supported by the broker")
 				return err
 			}
@@ -928,10 +929,10 @@ func (client *client) tryRefreshMetadata(topics []string, attemptsRemaining int,
 			client.deregisterBroker(broker)
 
 		default:
-			if err == ErrSASLHandshakeReadEOF ||
-				err == ErrSASLHandshakeSendEOF ||
-				err == ErrFetchMetadataEOF ||
-				err == ErrBadTLSHandshake {
+			if errors.Is(err, ErrSASLHandshakeReadEOF) ||
+				errors.Is(err, ErrSASLHandshakeSendEOF) ||
+				errors.Is(err, ErrFetchMetadataEOF) ||
+				errors.Is(err, ErrBadTLSHandshake) {
 				// These errors are typically unrecoverable, so we return them
 				// directly here to avoid falling back on the less useful
 				// "client has run out of brokers" error after retrying.
