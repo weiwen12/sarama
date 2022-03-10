@@ -1,6 +1,7 @@
 package sarama
 
 import (
+	"errors"
 	"math/rand"
 	"sort"
 	"sync"
@@ -908,21 +909,41 @@ func (client *client) tryRefreshMetadata(topics []string, attemptsRemaining int,
 
 		case KError:
 			// if SASL auth error return as this _should_ be a non retryable err for all brokers
-			if err == ErrSASLAuthenticationFailed {
+			if errors.Is(err, ErrSASLAuthenticationFailed) {
 				Logger.Println("client/metadata failed SASL authentication")
 				return err
 			}
 
-			if err == ErrTopicAuthorizationFailed {
+			if errors.Is(err, ErrTopicAuthorizationFailed) {
 				Logger.Println("client is not authorized to access this topic. The topics were: ", topics)
 				return err
 			}
+			if errors.Is(err, ErrUnsupportedSASLMechanism) {
+				Logger.Println("requested SASL mechanism is not supported by the broker")
+				return err
+			}
+
 			// else remove that broker and try again
-			Logger.Printf("client/metadata got error from broker %d while fetching metadata: %v\n", broker.ID(), err)
+			Logger.Printf("client/metadata got kafka error from broker %d while fetching metadata: %v\n", broker.ID(), err)
 			_ = broker.Close()
 			client.deregisterBroker(broker)
 
 		default:
+			if errors.Is(err, ErrSASLHandshakeReadEOF) ||
+				errors.Is(err, ErrSASLHandshakeSendEOF) ||
+				errors.Is(err, ErrFetchMetadataEOF) ||
+				errors.Is(err, ErrBadTLSHandshake) {
+				// These errors are typically unrecoverable, so we return them
+				// directly here to avoid falling back on the less useful
+				// "client has run out of brokers" error after retrying.
+				//
+				// Beats-specific note: if these errors arise, the connection
+				// will still be retried, so this will not break things if the
+				// error is temporary; it will just retry at the user-configured
+				// rate, and with more informative log messages.
+				return err
+			}
+
 			// some other error, remove that broker and try again
 			Logger.Printf("client/metadata got error from broker %d while fetching metadata: %v\n", broker.ID(), err)
 			_ = broker.Close()
