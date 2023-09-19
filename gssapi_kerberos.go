@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jcmturner/gofork/encoding/asn1"
@@ -195,18 +196,44 @@ func (krbAuth *GSSAPIKerberosAuth) initSecContext(bytes []byte, kerberosClient K
 	return nil, nil
 }
 
-/* This does the handshake for authorization */
-func (krbAuth *GSSAPIKerberosAuth) Authorize(broker *Broker) error {
-	kerberosClient, err := krbAuth.NewKerberosClientFunc(krbAuth.Config)
-	if err != nil {
-		Logger.Printf("Kerberos client error: %s", err)
-		return err
+type kerberosAuthCacheMgr struct {
+	sync.Mutex
+	once sync.Once
+
+	kerberosClient KerberosClient // only one
+
+	authMapping sync.Map // key: broker host value: *kerberosAuthCache
+}
+
+type kerberosAuthCache struct {
+	prevFetchTime time.Time
+	Ticket        *messages.Ticket
+	EncKey        *types.EncryptionKey
+}
+
+func (kac *kerberosAuthCacheMgr) init(krbAuth *GSSAPIKerberosAuth) {
+	kac.once.Do(func() {
+		var err error
+		kac.kerberosClient, err = krbAuth.NewKerberosClientFunc(krbAuth.Config)
+		if err != nil {
+			panic(fmt.Sprintf("Kerberos client error: %v", err))
+		}
+	})
+}
+
+func (kac *kerberosAuthCacheMgr) auth(broker *Broker) (*messages.Ticket, *types.EncryptionKey, error) {
+	kac.Lock()
+	defer kac.Unlock()
+
+	authInfo, ok := kac.authMapping.Load(broker.addr)
+	if ok && time.Since(authInfo.(*kerberosAuthCache).prevFetchTime) < time.Hour {
+		return authInfo.(*kerberosAuthCache).Ticket, authInfo.(*kerberosAuthCache).EncKey, nil
 	}
 
-	err = kerberosClient.Login()
+	err := kac.kerberosClient.Login()
 	if err != nil {
 		Logger.Printf("Kerberos client error: %s", err)
-		return err
+		return nil, nil, err
 	}
 	// Construct SPN using serviceName and host
 	// SPN format: <SERVICE>/<FQDN>
@@ -214,18 +241,42 @@ func (krbAuth *GSSAPIKerberosAuth) Authorize(broker *Broker) error {
 	host := strings.SplitN(broker.addr, ":", 2)[0] // Strip port part
 	spn := fmt.Sprintf("%s/%s", broker.conf.Net.SASL.GSSAPI.ServiceName, host)
 
-	ticket, encKey, err := kerberosClient.GetServiceTicket(spn)
+	ticket, encKey, err := kac.kerberosClient.GetServiceTicket(spn)
+	if err != nil {
+		Logger.Printf("Error getting Kerberos service ticket : %s", err)
+		return nil, nil, err
+	}
+	entry := kerberosAuthCache{
+		prevFetchTime: time.Now(),
+		Ticket:        &ticket,
+		EncKey:        &encKey,
+	}
+	kac.authMapping.Store(broker.addr, &entry)
+	return entry.Ticket, entry.EncKey, nil
+}
+
+func (kac *kerberosAuthCacheMgr) client() KerberosClient {
+	return kac.kerberosClient
+}
+
+var authCacheMgr = &kerberosAuthCacheMgr{}
+
+/* This does the handshake for authorization */
+func (krbAuth *GSSAPIKerberosAuth) Authorize(broker *Broker) error {
+	authCacheMgr.init(krbAuth)
+	ticket, encKey, err := authCacheMgr.auth(broker)
 	if err != nil {
 		Logger.Printf("Error getting Kerberos service ticket : %s", err)
 		return err
 	}
-	krbAuth.ticket = ticket
-	krbAuth.encKey = encKey
+
+	krbAuth.ticket = *ticket
+	krbAuth.encKey = *encKey
 	krbAuth.step = GSS_API_INITIAL
 	var receivedBytes []byte = nil
-	defer kerberosClient.Destroy()
+	// defer kerberosClient.Destroy()
 	for {
-		packBytes, err := krbAuth.initSecContext(receivedBytes, kerberosClient)
+		packBytes, err := krbAuth.initSecContext(receivedBytes, authCacheMgr.client())
 		if err != nil {
 			Logger.Printf("Error while performing GSSAPI Kerberos Authentication: %s\n", err)
 			return err
